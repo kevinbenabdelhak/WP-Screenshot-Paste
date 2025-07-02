@@ -5,11 +5,11 @@
 **Nécessite au minimum :** 5.0  
 **Testé jusqu'à :** 6.5.3  
 **Nécessite PHP :** 7.0  
-**Stable :** 1.0  
+**Stable :** 1.1   
 **Licence :** GPLv2 ou ultérieure  
 **URI de la licence :** [https://www.gnu.org/licenses/gpl-2.0.html](https://www.gnu.org/licenses/gpl-2.0.html)
 
-Ce plugin WordPress permet de coller des images (captures d’écran, fichiers copiés) directement depuis le presse-papier dans l’éditeur classique (TinyMCE ou texte) ou la médiathèque. Un loader visuel indique la progression et l’image est automatiquement uploadée puis insérée à l’emplacement du curseur ou ajoutée à la médiathèque.
+Ce plugin WordPress permet de coller des images (captures d’écran, fichiers copiés) directement depuis le presse-papier dans l’éditeur classique (TinyMCE ou texte) ou la médiathèque. Un loader visuel indique la progression et l’image est automatiquement uploadée puis insérée à l’emplacement du curseur ou ajoutée à la médiathèque. Ajoute automatiquement alt, légende, titre et description avec gpt-4.1
 
 [![Voir le tutoriel](https://img.youtube.com/vi/LlCJHz9WlRk/maxresdefault.jpg)](https://www.youtube.com/watch?v=LlCJHz9WlRk&ab_channel=KevinBenabdelhak)
 
@@ -44,6 +44,10 @@ Collez vos captures d'écran ou images copiées directement dans l'éditeur clas
 3. Attendez la fin du loader : l’image est uploadée et insérée/sauvegardée automatiquement.
 
 ## MAJ
+
+### 1.1 
+- Ajout d'une page d'option pour insérer une clé API OpenAI
+- Générer alt, légende, titre et description avec gpt-4.1
 
 ### 1.0
 - Coller des screenshots avec ctrl+v
