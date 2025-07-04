@@ -5,7 +5,7 @@
 **Nécessite au minimum :** 5.0  
 **Testé jusqu'à :** 6.5.3  
 **Nécessite PHP :** 7.0  
-**Stable :** 1.1   
+**Stable :** 1.2   
 **Licence :** GPLv2 ou ultérieure  
 **URI de la licence :** [https://www.gnu.org/licenses/gpl-2.0.html](https://www.gnu.org/licenses/gpl-2.0.html)
 
@@ -44,6 +44,11 @@ Collez vos captures d'écran ou images copiées directement dans l'éditeur clas
 3. Attendez la fin du loader : l’image est uploadée et insérée/sauvegardée automatiquement.
 
 ## MAJ
+
+### 1.2 
+- Permet de designer un screenshot en ajoutant une bordure
+- Gérer la couleur (unie/dégradé) de la bordure, la taille, le radius
+- Prévisualisation en direct dans la page d'option
 
 ### 1.1 
 - Ajout d'une page d'option pour insérer une clé API OpenAI
