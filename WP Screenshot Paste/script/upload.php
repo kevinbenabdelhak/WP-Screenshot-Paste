@@ -5,9 +5,10 @@ if (!defined('ABSPATH')) exit;
 function wsp_paste_design_config_json() {
     $style = [
         'margin'  => intval(get_option('wsp_screenshot_outer_margin', 16)),
-        'color'   => get_option('wsp_screenshot_outer_color', '#dde3ec'),
-        'gradient'=> get_option('wsp_screenshot_outer_gradient', ''),
+        'color'   => get_option('wsp_screenshot_bgcolor1', '#dde3ec'),
+        'gradient'=> '', // Adaptation possible
         'radius'  => intval(get_option('wsp_screenshot_border_radius', 12)),
+        'img_radius' => intval(get_option('wsp_screenshot_img_border_radius', 8)), // NOUVEAU
         'b_width' => intval(get_option('wsp_screenshot_border_width',1)),
         'b_color' => get_option('wsp_screenshot_border_color', '#cccccc'),
         'b_style' => get_option('wsp_screenshot_border_style', 'solid')
@@ -18,7 +19,7 @@ function wsp_paste_design_config_json() {
     </script>
     <?php
 }
-add_action('admin_footer', 'wsp_paste_design_config_json', 0); // Priority 0 pour charger AVANT JS principal
+add_action('admin_footer', 'wsp_paste_design_config_json', 0); // Priorité 0 pour charger AVANT JS principal
 
 add_action('admin_footer', 'paste_image_upload_js');
 function paste_image_upload_js() {
@@ -49,14 +50,11 @@ function paste_image_upload_js() {
     </div>
     <script>
     (function($){
-        // Fonction pour wrapper le HTML image avec du style personnalisé (directement dans le style du "div")
         window.wspMakeScreenshotHTML = function(imgUrl, altText){
-            // On récupère l'objet transmis depuis PHP
             var conf = window.wspPasteScreenshotDesign || {};
-            // Style CSS en js (on échappe bien les valeurs)
             var style=[];
             var margin=(+conf.margin||0), color=conf.color||'#dde3ec', grad=conf.gradient||'',
-                rad=+conf.radius||0, b_width=+conf.b_width||0, b_color=conf.b_color||'#ccc', b_style=conf.b_style||'solid';
+                rad=+conf.radius||0, img_rad=+conf.img_radius||0, b_width=+conf.b_width||0, b_color=conf.b_color||'#ccc', b_style=conf.b_style||'solid';
             style.push('display:inline-block');
             style.push('padding:'+margin+'px');
             style.push('background:'+(grad.length?grad:color));
@@ -64,7 +62,7 @@ function paste_image_upload_js() {
             if(b_style&&b_style!=='none'&&b_width)
                 style.push('border:'+b_width+'px '+b_style+' '+b_color);
             var altHtml = altText ? ' alt="' + $('<div>').text(altText).html() + '" ' : '';
-            return '<img src="'+imgUrl+'"'+altHtml+'style="max-width:100%;height:auto;display:block;border-radius:'+(Math.max(0,rad-2))+'px;" />';
+            return '<span style="'+style.join(';')+'"><img src="'+imgUrl+'"'+altHtml+'style="max-width:100%;height:auto;display:block;border-radius:'+img_rad+'px;" /></span>';
         };
 
         $(document).ready(function(){

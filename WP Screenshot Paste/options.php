@@ -16,6 +16,7 @@ add_action('admin_init', function() {
     register_setting('wsp_options_group', 'wsp_screenshot_bgcolor2', ['type'=>'string','default'=>'#aec6df']);
     register_setting('wsp_options_group', 'wsp_screenshot_bgangle',  ['type'=>'integer','default'=>135]);
     register_setting('wsp_options_group', 'wsp_screenshot_border_radius', ['type'=>'integer','default'=>12]);
+    register_setting('wsp_options_group', 'wsp_screenshot_img_border_radius', ['type'=>'integer','default'=>8]);
 });
 
 
@@ -29,7 +30,7 @@ function wsp_options_page() {
     $bgcolor2 = get_option('wsp_screenshot_bgcolor2', '#aec6df');
     $bgangle = intval(get_option('wsp_screenshot_bgangle', 135));
     $border_radius = intval(get_option('wsp_screenshot_border_radius', 12));
-
+    $img_border_radius = intval(get_option('wsp_screenshot_img_border_radius', 8));
 
     $preview_width = 340;
     $preview_height = 200;
@@ -89,10 +90,19 @@ function wsp_options_page() {
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row">Arrondi des coins</th>
+                    <th scope="row">Arrondi des coins (cadre/fond)</th>
                     <td>
                         <input type="range" name="wsp_screenshot_border_radius" min="0" max="48" value="<?php echo esc_attr($border_radius); ?>" step="1" id="wsp_screenshot_border_radius" oninput="document.getElementById('radius_val').innerText=this.value"/>&nbsp;
                         <span id="radius_val"><?php echo esc_html($border_radius); ?></span> px
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">Arrondi des coins de l'image</th>
+                    <td>
+                        <input type="range" name="wsp_screenshot_img_border_radius" min="0" max="48" value="<?php echo esc_attr($img_border_radius); ?>" step="1" id="wsp_screenshot_img_border_radius" oninput="document.getElementById('img_radius_val').innerText=this.value"/>&nbsp;
+                        <span id="img_radius_val"><?php echo esc_html($img_border_radius); ?></span> px
+                        <br>
+                        <span class="description">Ceci concerne l&apos;image contenue (indépendamment du cadre/fond).</span>
                     </td>
                 </tr>
             </table>
@@ -119,8 +129,6 @@ function wsp_options_page() {
         }
         document.getElementById('wsp_screenshot_bgtype').addEventListener('change', setBgUI);
 
-
-
         // Aperçu dynamique COVER si marge=0, CONTAIN si > 0
         const previewW = 340, previewH = 200, imgW = 340, imgH = 200;
         const preview = document.getElementById('wsp-screenshot-preview-outer');
@@ -128,6 +136,7 @@ function wsp_options_page() {
         function update_preview(){
             let margin = parseInt(document.getElementById('wsp_screenshot_outer_margin').value)||0;
             let radius = parseInt(document.getElementById('wsp_screenshot_border_radius').value)||0;
+            let img_radius = parseInt(document.getElementById('wsp_screenshot_img_border_radius').value)||0;
             let bgtype = document.getElementById('wsp_screenshot_bgtype').value;
             let bgcolor1 = document.getElementById('wsp_screenshot_bgcolor1').value;
             let bgcolor2 = document.getElementById('wsp_screenshot_bgcolor2').value;
@@ -162,7 +171,7 @@ function wsp_options_page() {
             img.style.left = offsetX+'px';
             img.style.top = offsetY+'px';
             img.style.objectFit = 'cover';
-            img.style.borderRadius = Math.max(0, radius - margin)+"px";
+            img.style.borderRadius = img_radius+"px";
 
             if(bgtype=='gradient'){
                 preview.style.background = 'linear-gradient('+bgangle+'deg, '+bgcolor1+', '+bgcolor2+')';
@@ -180,7 +189,8 @@ function wsp_options_page() {
             'wsp_screenshot_bgcolor1',
             'wsp_screenshot_bgcolor2',
             'wsp_screenshot_bgangle',
-            'wsp_screenshot_border_radius'
+            'wsp_screenshot_border_radius',
+            'wsp_screenshot_img_border_radius'
         ].forEach(id=>{
             let el = document.getElementById(id); if(!el)return;
             el.addEventListener('input', update_preview);

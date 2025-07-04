@@ -17,19 +17,19 @@ add_action('wp_ajax_paste_image_upload', function () {
     $new_tmp = $file['tmp_name'];
     $has_design = false;
 
-    // --------- OPTIONS DESIGN ---------
+ 
     $outer_margin = intval(get_option('wsp_screenshot_outer_margin', 16));
     $border_radius = intval(get_option('wsp_screenshot_border_radius', 12));
-    // --- Nouvelles options pour fond ---
+    $img_border_radius = intval(get_option('wsp_screenshot_img_border_radius', 8));
     $bgtype   = get_option('wsp_screenshot_bgtype','color');
     $bgcolor1 = get_option('wsp_screenshot_bgcolor1','#dde3ec');
     $bgcolor2 = get_option('wsp_screenshot_bgcolor2','#aec6df');
     $bgangle  = intval(get_option('wsp_screenshot_bgangle',135));
-    //------------------------------------
+  
 
-    // Ajouter cadre si marge/radius
-    if($outer_margin>0 || $border_radius>0){
-        // Charger image source avec GD
+    // Ajouter cadre si marge/radius OU SI arrondi image
+    if($outer_margin>0 || $border_radius>0 || $img_border_radius>0){
+  
         switch($mime){
             case 'image/png':  $src = imagecreatefrompng($file['tmp_name']); break;
             case 'image/jpeg': $src = imagecreatefromjpeg($file['tmp_name']); break;
@@ -127,33 +127,43 @@ add_action('wp_ajax_paste_image_upload', function () {
                 }
             }
 
-            // -- COLLAGE IMAGE source (arrondi si besoin) --
-            if($radius>0){
-                $mask = imagecreatetruecolor($ow, $oh);
-                imagesavealpha($mask,true);
-                $tt = imagecolorallocatealpha($mask,0,0,0,127);
-                imagefill($mask,0,0,$tt);
-                imagefilledroundedrect($mask, 0,0, $ow-1,$oh-1, max(0,$radius-$margin), imagecolorallocate($mask,255,255,255));
-                imagealphablending($src, true);
-                for($y=0; $y<$oh; $y++){
-                    for($x=0; $x<$ow; $x++){
-                        $a = (imagecolorat($mask, $x, $y)>>24)&0x7F;
-                        if($a==127) imagesetpixel($src,$x,$y,$trans);
-                    }
-                }
-                imagedestroy($mask);
-            }
-            imagecopy($dst, $src, $margin, $margin, 0,0, $ow,$oh);
+            // --- COLLAGE IMAGE source (arrondi SI BESOIN) ---
+if($img_border_radius>0){
+    $img_radius_value = min($img_border_radius, min($ow,$oh)/2);
 
-            // Réenregistrement dans un fichier temporaire
-            $ext = pathinfo($file['name'],PATHINFO_EXTENSION);
+    // Masque arrondi sur dimension de l'image source
+    $mask = imagecreatetruecolor($ow, $oh);
+    imagesavealpha($mask,true);
+    $tt = imagecolorallocatealpha($mask,0,0,0,127);
+    imagefill($mask,0,0,$tt);
+    imagefilledroundedrect($mask, 0,0, $ow-1,$oh-1, $img_radius_value, imagecolorallocate($mask,255,255,255));
+
+    // Collage EN PLACE uniquement sur les zones arrondies
+    for($y=0;$y<$oh;$y++){
+        for($x=0;$x<$ow;$x++){
+            $mx = imagecolorat($mask,$x,$y);
+            // Si pixel masque NON transparent -> coller le pixel
+            if((($mx>>24)&0x7F)!=127){
+                imagesetpixel($dst, $x+$margin, $y+$margin, imagecolorat($src,$x,$y));
+            }
+        }
+    }
+    imagedestroy($mask);
+} else {
+   
+    imagecopy($dst, $src, $margin, $margin, 0, 0, $ow, $oh);
+}
+            // Réenregistrement dans un fichier temporaire (force PNG si arrondi image!)
+            $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
             $rnd = wp_generate_password(10,false,false);
+            if($img_border_radius>0) $ext = 'png';
             $out_fn = sys_get_temp_dir().'/wspaste_'.time().'_'.$rnd.'.'.$ext;
-            switch($mime){
-                case 'image/png': imagepng($dst, $out_fn); break;
-                case 'image/jpeg': imagejpeg($dst, $out_fn, 96); break;
-                case 'image/gif': imagegif($dst, $out_fn); break;
-                case 'image/webp': if(function_exists('imagewebp')) imagewebp($dst, $out_fn); break;
+            switch(true){
+                case ($img_border_radius>0): imagepng($dst, $out_fn); break;
+                case ($mime=='image/png'): imagepng($dst, $out_fn); break;
+                case ($mime=='image/jpeg'): imagejpeg($dst, $out_fn, 96); break;
+                case ($mime=='image/gif'): imagegif($dst, $out_fn); break;
+                case ($mime=='image/webp' && function_exists('imagewebp')): imagewebp($dst, $out_fn); break;
             }
             imagedestroy($src); imagedestroy($dst);
             $new_tmp = $out_fn;
@@ -264,7 +274,6 @@ add_action('wp_ajax_paste_image_upload', function () {
         'legende' => $legende
     ]);
 });
-
 
 
 
