@@ -39,7 +39,7 @@ function wsp_options_page() {
 
     ?>
     <div class="wrap">
-        <h1>WP Screenshot Paste – OpenAI</h1>
+        <h1>WP Screenshot Paste</h1>
         <form method="post" action="options.php" id="wsp-options-screen">
             <?php settings_fields('wsp_options_group'); do_settings_sections('wsp_options_group'); ?>
             <table class="form-table">
