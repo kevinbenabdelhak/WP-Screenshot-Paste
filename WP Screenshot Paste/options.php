@@ -6,7 +6,7 @@ if (!defined('ABSPATH')) {
 
 
 add_action('admin_menu', function() {
-    add_options_page('WP Screenshot Paste - OpenAI', 'WP Screenshot Paste', 'manage_options', 'wsp-options', 'wsp_options_page');
+    add_options_page('WP Screenshot Paste', 'WP Screenshot Paste', 'manage_options', 'wsp-options', 'wsp_options_page');
 });
 add_action('admin_init', function() {
     register_setting('wsp_options_group', 'wsp_openai_api_key');
