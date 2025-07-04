@@ -40,6 +40,11 @@ Utilisez Ctrl+V pour coller une image copiée
 Attendez la fin du loader : l’image est uploadée et insérée/sauvegardée automatiquement
 == MAJ  ==
 
+= 1.2 =
+
+* Permet de designer un screenshot en ajoutant une bordure
+* Gérer la couleur (unie/dégradé) de la bordure, la taille, le radius
+* Prévisualisation en direct dans la page d'option
 
 = 1.1 =
 

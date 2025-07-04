@@ -1,6 +1,25 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
+// PRÉPARE options design à transmettre au JS via JSON (en haut du footer)
+function wsp_paste_design_config_json() {
+    $style = [
+        'margin'  => intval(get_option('wsp_screenshot_outer_margin', 16)),
+        'color'   => get_option('wsp_screenshot_outer_color', '#dde3ec'),
+        'gradient'=> get_option('wsp_screenshot_outer_gradient', ''),
+        'radius'  => intval(get_option('wsp_screenshot_border_radius', 12)),
+        'b_width' => intval(get_option('wsp_screenshot_border_width',1)),
+        'b_color' => get_option('wsp_screenshot_border_color', '#cccccc'),
+        'b_style' => get_option('wsp_screenshot_border_style', 'solid')
+    ];
+    ?>
+    <script>
+    window.wspPasteScreenshotDesign = <?php echo json_encode($style,JSON_UNESCAPED_SLASHES); ?>;
+    </script>
+    <?php
+}
+add_action('admin_footer', 'wsp_paste_design_config_json', 0); // Priority 0 pour charger AVANT JS principal
+
 add_action('admin_footer', 'paste_image_upload_js');
 function paste_image_upload_js() {
     $screen = get_current_screen();
@@ -30,6 +49,24 @@ function paste_image_upload_js() {
     </div>
     <script>
     (function($){
+        // Fonction pour wrapper le HTML image avec du style personnalisé (directement dans le style du "div")
+        window.wspMakeScreenshotHTML = function(imgUrl, altText){
+            // On récupère l'objet transmis depuis PHP
+            var conf = window.wspPasteScreenshotDesign || {};
+            // Style CSS en js (on échappe bien les valeurs)
+            var style=[];
+            var margin=(+conf.margin||0), color=conf.color||'#dde3ec', grad=conf.gradient||'',
+                rad=+conf.radius||0, b_width=+conf.b_width||0, b_color=conf.b_color||'#ccc', b_style=conf.b_style||'solid';
+            style.push('display:inline-block');
+            style.push('padding:'+margin+'px');
+            style.push('background:'+(grad.length?grad:color));
+            style.push('border-radius:'+rad+'px');
+            if(b_style&&b_style!=='none'&&b_width)
+                style.push('border:'+b_width+'px '+b_style+' '+b_color);
+            var altHtml = altText ? ' alt="' + $('<div>').text(altText).html() + '" ' : '';
+            return '<img src="'+imgUrl+'"'+altHtml+'style="max-width:100%;height:auto;display:block;border-radius:'+(Math.max(0,rad-2))+'px;" />';
+        };
+
         $(document).ready(function(){
             var $loader = $('#paste-image-loader'), $loaderMsg = $('#paste-image-loader-message');
 
@@ -37,7 +74,6 @@ function paste_image_upload_js() {
             function hideLoader() { $loader.hide(); }
 
             function uploadFile(file) {
-                // DÉCOUPÉ EN 2 pour mises à jour du loader
                 var data = new FormData();
                 data.append('action', 'paste_image_upload');
                 data.append('nonce', '<?php echo wp_create_nonce('paste_image_upload_nonce'); ?>');
@@ -64,7 +100,6 @@ function paste_image_upload_js() {
                 });
             }
 
-            // Editeur visuel TinyMCE
             function addTinyMCEPasteHandlerTo(editor) {
                 if (editor.pasteImageHandlerAdded) return;
                 editor.pasteImageHandlerAdded = true;
@@ -80,15 +115,13 @@ function paste_image_upload_js() {
                     showLoader('Upload de l’image collée en cours…');
                     var fileToUpload = files[0];
 
-                    // loader "alt IA" dès fin d’upload
                     var uploadPromise = uploadFile(fileToUpload);
                     setTimeout(function(){ showLoader('Génération du texte alternatif de l\'image par IA…'); }, 900);
 
                     uploadPromise.done(function(response){
                         hideLoader();
                         if (response.success) {
-                            var altHtml = response.data.alt ? ' alt="' + $('<div>').text(response.data.alt).html() + '" ' : '';
-                            var imageHtml = '<img src="' + response.data.attachment_url + '"'+altHtml+'style="max-width:100%;height:auto;" />';
+                            var imageHtml = window.wspMakeScreenshotHTML(response.data.attachment_url, response.data.alt);
                             editor.execCommand('mceInsertContent', false, imageHtml);
                         } else {
                             alert('Erreur upload/génération IA : '+response.data);
@@ -111,9 +144,7 @@ function paste_image_upload_js() {
             setTimeout(bindAllTinyMCE, 1000);
             $(document).on('click','.switch-tmce, .wp-switch-editor.switch-tmce',function(){ setTimeout(bindAllTinyMCE,400); });
 
-            // Editeur code natif
             $('#content').on('paste', function(event){
-                // Ne pas activer si visuel actif
                 if(typeof tinymce!=='undefined'&&tinymce.activeEditor&&!tinymce.activeEditor.isHidden())return;
                 var clipboardItems = (event.originalEvent?event.originalEvent.clipboardData:event.clipboardData).items;
                 if(!clipboardItems) return;
@@ -133,8 +164,7 @@ function paste_image_upload_js() {
                 uploadPromise.done(function(response){
                     hideLoader();
                     if(response.success){
-                        var altHtml = response.data.alt?' alt="'+$('<div>').text(response.data.alt).html()+'" ':'';
-                        var imageHtml = '<img src="'+response.data.attachment_url+'"'+altHtml+'style="max-width:100%;height:auto;" />';
+                        var imageHtml = window.wspMakeScreenshotHTML(response.data.attachment_url, response.data.alt);
                         var textarea = event.target, start = textarea.selectionStart, end = textarea.selectionEnd, text=textarea.value;
                         textarea.value = text.substring(0,start)+imageHtml+text.substring(end);
                         textarea.selectionStart = textarea.selectionEnd = start+imageHtml.length;
@@ -147,7 +177,6 @@ function paste_image_upload_js() {
                 });
             });
 
-            // Medialibrary (upload.php)
             if(window.location.pathname.match(/\/upload\.php/)){
                 $(document).on('paste', function(event){
                     var clipboardItems = (event.originalEvent?event.originalEvent.clipboardData:event.clipboardData).items; if(!clipboardItems) return;

@@ -8,21 +8,167 @@ add_action('wp_ajax_paste_image_upload', function () {
     $file = $_FILES['file'];
     if ($file['error'] !== UPLOAD_ERR_OK) wp_send_json_error('Erreur lors du téléchargement');
 
-    $allowed_mimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    $allowed_mimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     $finfo = finfo_open(FILEINFO_MIME_TYPE);
     $mime = finfo_file($finfo, $file['tmp_name']);
     finfo_close($finfo);
     if (!in_array($mime, $allowed_mimes)) wp_send_json_error('Type de fichier non autorisé : ' . esc_html($mime));
 
-    $image_data = file_get_contents($file['tmp_name']);
+    $new_tmp = $file['tmp_name'];
+    $has_design = false;
+
+    // --------- OPTIONS DESIGN ---------
+    $outer_margin = intval(get_option('wsp_screenshot_outer_margin', 16));
+    $border_radius = intval(get_option('wsp_screenshot_border_radius', 12));
+    // --- Nouvelles options pour fond ---
+    $bgtype   = get_option('wsp_screenshot_bgtype','color');
+    $bgcolor1 = get_option('wsp_screenshot_bgcolor1','#dde3ec');
+    $bgcolor2 = get_option('wsp_screenshot_bgcolor2','#aec6df');
+    $bgangle  = intval(get_option('wsp_screenshot_bgangle',135));
+    //------------------------------------
+
+    // Ajouter cadre si marge/radius
+    if($outer_margin>0 || $border_radius>0){
+        // Charger image source avec GD
+        switch($mime){
+            case 'image/png':  $src = imagecreatefrompng($file['tmp_name']); break;
+            case 'image/jpeg': $src = imagecreatefromjpeg($file['tmp_name']); break;
+            case 'image/gif':  $src = imagecreatefromgif($file['tmp_name']); break;
+            case 'image/webp': $src = function_exists('imagecreatefromwebp') ? imagecreatefromwebp($file['tmp_name']) : null; break;
+            default: $src = null;
+        }
+        if($src){
+            $ow = imagesx($src);
+            $oh = imagesy($src);
+            $margin = max(0, $outer_margin);
+
+            $dst_w = $ow + 2*$margin;
+            $dst_h = $oh + 2*$margin;
+
+            $radius = min($border_radius, min($dst_w, $dst_h)/2);
+
+            $dst = imagecreatetruecolor($dst_w, $dst_h);
+            imagesavealpha($dst, true);
+            imagealphablending($dst, false);
+
+            // FOND transparent
+            $trans = imagecolorallocatealpha($dst, 0,0,0,127);
+            imagefill($dst, 0,0, $trans);
+
+            // --- FOND extérieur ---
+            if($bgtype === 'gradient' && function_exists('imagecreatetruecolor')){
+                $c1 = sscanf($bgcolor1, "#%02x%02x%02x");
+                $c2 = sscanf($bgcolor2, "#%02x%02x%02x");
+                if($bgangle==90 || $bgangle==270){
+                    // gauche-droite
+                    for($x=0;$x<$dst_w;$x++){
+                        $alpha = $dst_w>1 ? $x/($dst_w-1) : 0;
+                        $r = $c1[0]+($c2[0]-$c1[0])*$alpha;
+                        $g = $c1[1]+($c2[1]-$c1[1])*$alpha;
+                        $b = $c1[2]+($c2[2]-$c1[2])*$alpha;
+                        $col = imagecolorallocate($dst, $r,$g,$b);
+                        imageline($dst,$x,0,$x,$dst_h-1,$col);
+                    }
+                } elseif($bgangle==0 || $bgangle==180) {
+                    // haut-bas
+                    for($y=0;$y<$dst_h;$y++){
+                        $alpha = $dst_h>1 ? $y/($dst_h-1) : 0;
+                        $r = $c1[0]+($c2[0]-$c1[0])*$alpha;
+                        $g = $c1[1]+($c2[1]-$c1[1])*$alpha;
+                        $b = $c1[2]+($c2[2]-$c1[2])*$alpha;
+                        $col = imagecolorallocate($dst, $r,$g,$b);
+                        imageline($dst,0,$y,$dst_w-1,$y,$col);
+                    }
+                } else {
+                    // diagonale 45/135
+                    for($y=0;$y<$dst_h;$y++){
+                        for($x=0;$x<$dst_w;$x++){
+                            $alphax = $dst_w>1 ? $x/($dst_w-1) : 0;
+                            $alphay = $dst_h>1 ? $y/($dst_h-1) : 0;
+                            if(abs($bgangle-135) <= abs($bgangle-45)){
+                                $alpha = ($alphax + $alphay)/2;
+                            }else{
+                                $alpha = (1-$alphax + $alphay)/2;
+                            }
+                            $r = $c1[0]+($c2[0]-$c1[0])*$alpha;
+                            $g = $c1[1]+($c2[1]-$c1[1])*$alpha;
+                            $b = $c1[2]+($c2[2]-$c1[2])*$alpha;
+                            imagesetpixel($dst, $x, $y, imagecolorallocate($dst, $r,$g,$b));
+                        }
+                    }
+                }
+                // Si radius>0, "masquer" hors arrondi
+                if($radius>0){
+                    $mask = imagecreatetruecolor($dst_w, $dst_h);
+                    imagesavealpha($mask,true);
+                    $tt = imagecolorallocatealpha($mask,0,0,0,127);
+                    imagefill($mask,0,0,$tt);
+                    imagefilledroundedrect($mask, 0,0, $dst_w-1,$dst_h-1, $radius, imagecolorallocate($mask,255,255,255));
+                    for($y=0;$y<$dst_h;$y++){
+                        for($x=0;$x<$dst_w;$x++){
+                            $px = imagecolorat($mask,$x,$y);
+                            if((($px>>24)&0x7F)==127) imagesetpixel($dst,$x,$y,$trans);
+                        }
+                    }
+                    imagedestroy($mask);
+                }
+            } else {
+                // Couleur unie simple !
+                if (preg_match('!^#([A-Fa-f0-9]{3,6})$!', trim($bgcolor1))) {
+                    sscanf(trim($bgcolor1), "#%02x%02x%02x", $rr, $gg, $bb);
+                    $fond_col = imagecolorallocate($dst, $rr, $gg, $bb);
+                } else {
+                    $fond_col = imagecolorallocate($dst, 220, 226, 236);
+                }
+                if($radius>0) {
+                    imagefilledroundedrect($dst, 0,0, $dst_w-1,$dst_h-1, $radius, $fond_col);
+                } else {
+                    imagefilledrectangle($dst, 0,0, $dst_w-1,$dst_h-1, $fond_col);
+                }
+            }
+
+            // -- COLLAGE IMAGE source (arrondi si besoin) --
+            if($radius>0){
+                $mask = imagecreatetruecolor($ow, $oh);
+                imagesavealpha($mask,true);
+                $tt = imagecolorallocatealpha($mask,0,0,0,127);
+                imagefill($mask,0,0,$tt);
+                imagefilledroundedrect($mask, 0,0, $ow-1,$oh-1, max(0,$radius-$margin), imagecolorallocate($mask,255,255,255));
+                imagealphablending($src, true);
+                for($y=0; $y<$oh; $y++){
+                    for($x=0; $x<$ow; $x++){
+                        $a = (imagecolorat($mask, $x, $y)>>24)&0x7F;
+                        if($a==127) imagesetpixel($src,$x,$y,$trans);
+                    }
+                }
+                imagedestroy($mask);
+            }
+            imagecopy($dst, $src, $margin, $margin, 0,0, $ow,$oh);
+
+            // Réenregistrement dans un fichier temporaire
+            $ext = pathinfo($file['name'],PATHINFO_EXTENSION);
+            $rnd = wp_generate_password(10,false,false);
+            $out_fn = sys_get_temp_dir().'/wspaste_'.time().'_'.$rnd.'.'.$ext;
+            switch($mime){
+                case 'image/png': imagepng($dst, $out_fn); break;
+                case 'image/jpeg': imagejpeg($dst, $out_fn, 96); break;
+                case 'image/gif': imagegif($dst, $out_fn); break;
+                case 'image/webp': if(function_exists('imagewebp')) imagewebp($dst, $out_fn); break;
+            }
+            imagedestroy($src); imagedestroy($dst);
+            $new_tmp = $out_fn;
+            $has_design = true;
+        }
+    }
+
+    // Lire l'image finale en base64 pour OpenAI
+    $image_data = file_get_contents($new_tmp);
     $base64 = 'data:' . $mime . ';base64,' . base64_encode($image_data);
 
     $openai_key = get_option('wsp_openai_api_key');
-    // Initialisation vides
     $titre = $alt = $description = $legende = '';
 
     if ($openai_key && strlen($openai_key) > 10) {
-        // Nouveau prompt :
         $prompt = 'Renvoie-moi un objet JSON avec les clés suivantes pour cette image : '
             . '"titre" (titre pertinent et court), "alt" (texte alternatif pour l\'accessibilité), '
             . '"description" (description longue détaillée), "legende" (légende synthétique). '
@@ -59,7 +205,6 @@ add_action('wp_ajax_paste_image_upload', function () {
 
         $response = wsp_call_openai($openai_key, $payload);
 
-        // ----------- Extraction format OpenAI format 1 (output -> content[0] -> text) -----------
         $ai_values = [];
         if (
             is_array($response)
@@ -68,12 +213,8 @@ add_action('wp_ajax_paste_image_upload', function () {
             && isset($response['output'][0]['content'][0]['text'])
         ) {
             $json = json_decode($response['output'][0]['content'][0]['text'], true);
-            if (is_array($json)) {
-                $ai_values = $json;
-            }
+            if (is_array($json)) $ai_values = $json;
         }
-
-        // Attribuer chaque champ (protection vide)
         $titre = isset($ai_values['titre']) ? $ai_values['titre'] : '';
         $alt = isset($ai_values['alt']) ? $ai_values['alt'] : '';
         $description = isset($ai_values['description']) ? $ai_values['description'] : '';
@@ -87,7 +228,8 @@ add_action('wp_ajax_paste_image_upload', function () {
     require_once ABSPATH.'wp-admin/includes/file.php';
     require_once ABSPATH.'wp-admin/includes/media.php';
     require_once ABSPATH.'wp-admin/includes/image.php';
-    $tmp_name = $file['tmp_name'];
+
+    $tmp_name = $new_tmp;
     $sideload = [
         'name' => $file['name'],
         'type' => $file['type'],
@@ -95,7 +237,6 @@ add_action('wp_ajax_paste_image_upload', function () {
         'error' => 0,
         'size'  => filesize($tmp_name)
     ];
-    // Préremplir les champs avant l'insert
     $post_data = array(
         'post_title'   => $titre ? sanitize_text_field($titre) : '',
         'post_excerpt' => $legende ? sanitize_text_field($legende) : '',
@@ -112,6 +253,8 @@ add_action('wp_ajax_paste_image_upload', function () {
     $attachment_url = wp_get_attachment_url($attachment_id);
     $attachment_url = add_query_arg('t', time(), $attachment_url);
 
+    if($has_design && is_file($new_tmp)) unlink($new_tmp);
+
     wp_send_json_success([
         'attachment_id' => $attachment_id,
         'attachment_url' => $attachment_url,
@@ -121,6 +264,22 @@ add_action('wp_ajax_paste_image_upload', function () {
         'legende' => $legende
     ]);
 });
+
+
+
+
+if (!function_exists('imagefilledroundedrect')) {
+    function imagefilledroundedrect(&$im, $x1,$y1,$x2,$y2, $radius, $col) {
+        // Corners
+        imagefilledellipse($im, $x1+$radius, $y1+$radius, $radius*2, $radius*2, $col);
+        imagefilledellipse($im, $x2-$radius, $y1+$radius, $radius*2, $radius*2, $col);
+        imagefilledellipse($im, $x1+$radius, $y2-$radius, $radius*2, $radius*2, $col);
+        imagefilledellipse($im, $x2-$radius, $y2-$radius, $radius*2, $radius*2, $col);
+        // Edges
+        imagefilledrectangle($im, $x1+$radius, $y1, $x2-$radius, $y2, $col);
+        imagefilledrectangle($im, $x1, $y1+$radius, $x2, $y2-$radius, $col);
+    }
+}
 
 function wsp_call_openai($api_key, $payload) {
     $url = "https://api.openai.com/v1/responses";
