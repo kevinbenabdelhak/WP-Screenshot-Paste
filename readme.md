@@ -5,7 +5,7 @@
 **Nécessite au minimum :** 5.0  
 **Testé jusqu'à :** 6.5.3  
 **Nécessite PHP :** 7.0  
-**Stable :** 1.4     
+**Stable :** 1.3       
 **Licence :** GPLv2 ou ultérieure  
 **URI de la licence :** [https://www.gnu.org/licenses/gpl-2.0.html](https://www.gnu.org/licenses/gpl-2.0.html)
 
