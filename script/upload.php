@@ -68,7 +68,7 @@ function paste_image_upload_js() {
             if(b_style&&b_style!=='none'&&b_width)
                 style.push('border:'+b_width+'px '+b_style+' '+b_color);
             var altHtml = altText ? ' alt="' + $('<div>').text(altText).html() + '" ' : '';
-            return '<span style="'+style.join(';')+'"><img src="'+imgUrl+'"'+altHtml+'style="max-width:100%;height:auto;display:block;border-radius:'+img_rad+'px;" /></span>';
+            return '<img src="'+imgUrl+'"'+altHtml+'style="max-width:100%;height:auto;display:block;border-radius:'+img_rad+'px;" />';
         };
 
         $(document).ready(function(){
