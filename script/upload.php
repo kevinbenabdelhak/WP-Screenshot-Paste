@@ -1,17 +1,23 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-// PRÉPARE options design à transmettre au JS via JSON (en haut du footer)
 function wsp_paste_design_config_json() {
     $style = [
         'margin'  => intval(get_option('wsp_screenshot_outer_margin', 16)),
         'color'   => get_option('wsp_screenshot_bgcolor1', '#dde3ec'),
-        'gradient'=> '', // Adaptation possible
+        'gradient'=> '',
         'radius'  => intval(get_option('wsp_screenshot_border_radius', 12)),
-        'img_radius' => intval(get_option('wsp_screenshot_img_border_radius', 8)), // NOUVEAU
+        'img_radius' => intval(get_option('wsp_screenshot_img_border_radius', 8)),
         'b_width' => intval(get_option('wsp_screenshot_border_width',1)),
         'b_color' => get_option('wsp_screenshot_border_color', '#cccccc'),
-        'b_style' => get_option('wsp_screenshot_border_style', 'solid')
+        'b_style' => get_option('wsp_screenshot_border_style', 'solid'),
+       
+       
+        'watermark_enable' => intval(get_option('wsp_watermark_enable', 0)),
+        'watermark_logo_url' => get_option('wsp_watermark_logo_url',''),
+        'watermark_size' => intval(get_option('wsp_watermark_size', 15)),
+        'watermark_opacity' => floatval(get_option('wsp_watermark_opacity', 0.5)),
+        'watermark_position' => get_option('wsp_watermark_position', 'bottom-right'),
     ];
     ?>
     <script>
@@ -19,7 +25,7 @@ function wsp_paste_design_config_json() {
     </script>
     <?php
 }
-add_action('admin_footer', 'wsp_paste_design_config_json', 0); // Priorité 0 pour charger AVANT JS principal
+add_action('admin_footer', 'wsp_paste_design_config_json', 0);
 
 add_action('admin_footer', 'paste_image_upload_js');
 function paste_image_upload_js() {
@@ -112,8 +118,7 @@ function paste_image_upload_js() {
                     e.preventDefault();
                     showLoader('Upload de l’image collée en cours…');
                     var fileToUpload = files[0];
-
-                    var uploadPromise = uploadFile(fileToUpload);
+                                        var uploadPromise = uploadFile(fileToUpload);
                     setTimeout(function(){ showLoader('Génération du texte alternatif de l\'image par IA…'); }, 900);
 
                     uploadPromise.done(function(response){

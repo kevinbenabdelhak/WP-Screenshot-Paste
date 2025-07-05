@@ -17,7 +17,6 @@ add_action('wp_ajax_paste_image_upload', function () {
     $new_tmp = $file['tmp_name'];
     $has_design = false;
 
- 
     $outer_margin = intval(get_option('wsp_screenshot_outer_margin', 16));
     $border_radius = intval(get_option('wsp_screenshot_border_radius', 12));
     $img_border_radius = intval(get_option('wsp_screenshot_img_border_radius', 8));
@@ -25,11 +24,16 @@ add_action('wp_ajax_paste_image_upload', function () {
     $bgcolor1 = get_option('wsp_screenshot_bgcolor1','#dde3ec');
     $bgcolor2 = get_option('wsp_screenshot_bgcolor2','#aec6df');
     $bgangle  = intval(get_option('wsp_screenshot_bgangle',135));
-  
 
-    // Ajouter cadre si marge/radius OU SI arrondi image
-    if($outer_margin>0 || $border_radius>0 || $img_border_radius>0){
-  
+    // Watermark
+    $wm_enable = intval(get_option('wsp_watermark_enable', 0));
+    $wm_logo_url = trim(get_option('wsp_watermark_logo_url', ''));
+    $wm_size = intval(get_option('wsp_watermark_size', 15));
+    $wm_opacity = floatval(get_option('wsp_watermark_opacity', 0.5));
+    $wm_pos = get_option('wsp_watermark_position', 'bottom-right');
+
+    // Ajouter cadre si marge/radius OU SI arrondi image ou watermark activé
+    if($outer_margin>0 || $border_radius>0 || $img_border_radius>0 || ($wm_enable && $wm_logo_url)){
         switch($mime){
             case 'image/png':  $src = imagecreatefrompng($file['tmp_name']); break;
             case 'image/jpeg': $src = imagecreatefromjpeg($file['tmp_name']); break;
@@ -51,7 +55,6 @@ add_action('wp_ajax_paste_image_upload', function () {
             imagesavealpha($dst, true);
             imagealphablending($dst, false);
 
-            // FOND transparent
             $trans = imagecolorallocatealpha($dst, 0,0,0,127);
             imagefill($dst, 0,0, $trans);
 
@@ -60,7 +63,6 @@ add_action('wp_ajax_paste_image_upload', function () {
                 $c1 = sscanf($bgcolor1, "#%02x%02x%02x");
                 $c2 = sscanf($bgcolor2, "#%02x%02x%02x");
                 if($bgangle==90 || $bgangle==270){
-                    // gauche-droite
                     for($x=0;$x<$dst_w;$x++){
                         $alpha = $dst_w>1 ? $x/($dst_w-1) : 0;
                         $r = $c1[0]+($c2[0]-$c1[0])*$alpha;
@@ -70,7 +72,6 @@ add_action('wp_ajax_paste_image_upload', function () {
                         imageline($dst,$x,0,$x,$dst_h-1,$col);
                     }
                 } elseif($bgangle==0 || $bgangle==180) {
-                    // haut-bas
                     for($y=0;$y<$dst_h;$y++){
                         $alpha = $dst_h>1 ? $y/($dst_h-1) : 0;
                         $r = $c1[0]+($c2[0]-$c1[0])*$alpha;
@@ -80,7 +81,6 @@ add_action('wp_ajax_paste_image_upload', function () {
                         imageline($dst,0,$y,$dst_w-1,$y,$col);
                     }
                 } else {
-                    // diagonale 45/135
                     for($y=0;$y<$dst_h;$y++){
                         for($x=0;$x<$dst_w;$x++){
                             $alphax = $dst_w>1 ? $x/($dst_w-1) : 0;
@@ -97,7 +97,6 @@ add_action('wp_ajax_paste_image_upload', function () {
                         }
                     }
                 }
-                // Si radius>0, "masquer" hors arrondi
                 if($radius>0){
                     $mask = imagecreatetruecolor($dst_w, $dst_h);
                     imagesavealpha($mask,true);
@@ -113,7 +112,6 @@ add_action('wp_ajax_paste_image_upload', function () {
                     imagedestroy($mask);
                 }
             } else {
-                // Couleur unie simple !
                 if (preg_match('!^#([A-Fa-f0-9]{3,6})$!', trim($bgcolor1))) {
                     sscanf(trim($bgcolor1), "#%02x%02x%02x", $rr, $gg, $bb);
                     $fond_col = imagecolorallocate($dst, $rr, $gg, $bb);
@@ -128,38 +126,120 @@ add_action('wp_ajax_paste_image_upload', function () {
             }
 
             // --- COLLAGE IMAGE source (arrondi SI BESOIN) ---
-if($img_border_radius>0){
-    $img_radius_value = min($img_border_radius, min($ow,$oh)/2);
+            if($img_border_radius>0){
+                $img_radius_value = min($img_border_radius, min($ow,$oh)/2);
 
-    // Masque arrondi sur dimension de l'image source
-    $mask = imagecreatetruecolor($ow, $oh);
-    imagesavealpha($mask,true);
-    $tt = imagecolorallocatealpha($mask,0,0,0,127);
-    imagefill($mask,0,0,$tt);
-    imagefilledroundedrect($mask, 0,0, $ow-1,$oh-1, $img_radius_value, imagecolorallocate($mask,255,255,255));
+                $mask = imagecreatetruecolor($ow, $oh);
+                imagesavealpha($mask,true);
+                $tt = imagecolorallocatealpha($mask,0,0,0,127);
+                imagefill($mask,0,0,$tt);
+                imagefilledroundedrect($mask, 0,0, $ow-1,$oh-1, $img_radius_value, imagecolorallocate($mask,255,255,255));
 
-    // Collage EN PLACE uniquement sur les zones arrondies
-    for($y=0;$y<$oh;$y++){
-        for($x=0;$x<$ow;$x++){
-            $mx = imagecolorat($mask,$x,$y);
-            // Si pixel masque NON transparent -> coller le pixel
-            if((($mx>>24)&0x7F)!=127){
-                imagesetpixel($dst, $x+$margin, $y+$margin, imagecolorat($src,$x,$y));
+                for($y=0;$y<$oh;$y++){
+                    for($x=0;$x<$ow;$x++){
+                        $mx = imagecolorat($mask,$x,$y);
+                        if((($mx>>24)&0x7F)!=127){
+                            imagesetpixel($dst, $x+$margin, $y+$margin, imagecolorat($src,$x,$y));
+                        }
+                    }
+                }
+                imagedestroy($mask);
+            } else {
+                imagecopy($dst, $src, $margin, $margin, 0, 0, $ow, $oh);
             }
+
+            // INTEGRATION DU WATERMARK
+            if($wm_enable && $wm_logo_url){
+                // Télécharger temporairement le PNG
+                $tmp_logo = download_url($wm_logo_url);
+                if (!is_wp_error($tmp_logo) && $tmp_logo) {
+                    $logo_img = @imagecreatefrompng($tmp_logo);
+                    @unlink($tmp_logo);
+                    if ($logo_img) {
+                        imagesavealpha($logo_img, true);
+                        $ww = imagesx($logo_img); $wh = imagesy($logo_img);
+                        $content_w = $dst_w - $margin*2;
+                        $content_h = $dst_h - $margin*2;
+                        $resize_to = floor(min($content_w, $content_h) * $wm_size / 100);
+                        $rw = $resize_to;
+                        $rh = floor($wh * $rw / $ww);
+                        if($rh > $resize_to){
+                            $rh = $resize_to;
+                            $rw = floor($ww * $rh / $wh);
+                        }
+                        $logo_resized = imagecreatetruecolor($rw, $rh);
+                        imagesavealpha($logo_resized, true);
+                        imagealphablending($logo_resized, false);
+
+                        $transparent = imagecolorallocatealpha($logo_resized, 0, 0, 0, 127);
+                        imagefill($logo_resized, 0, 0, $transparent); // preserve alpha
+
+                        imagecopyresampled($logo_resized, $logo_img, 0, 0, 0, 0, $rw, $rh, $ww, $wh);
+
+                        $pad = 8; // px
+                        switch($wm_pos){
+                            case 'top-left':
+                                $dx = $margin + $pad;
+                                $dy = $margin + $pad;
+                                break;
+                            case 'top-right':
+                                $dx = $dst_w - $rw - $margin - $pad;
+                                $dy = $margin + $pad;
+                                break;
+                            case 'bottom-left':
+                                $dx = $margin + $pad;
+                                $dy = $dst_h-$rh-$margin - $pad;
+                                break;
+                            default:
+                                $dx = $dst_w-$rw-$margin - $pad;
+                                $dy = $dst_h-$rh-$margin - $pad;
+                        }
+                        // Appliquer l'opacité seulement si < 1 :
+                        // Appliquer l'opacité seulement si < 1 :
+if($wm_opacity < 0.99){
+    // pixel par pixel alpha blending
+    // Fusionne pixel par pixel watermark avec alpha : incrustation propre !
+for($y=0;$y<$rh;$y++){
+    for($x=0;$x<$rw;$x++){
+        $rgba = imagecolorsforindex($logo_resized, imagecolorat($logo_resized, $x, $y));
+        // On récupère l'alpha de la source
+        $src_alpha = $rgba['alpha'] / 127;
+        // Opacité totale à appliquer (l'alpha PNG * l'opacité réglée)
+        $final_alpha = 1 - (1 - $src_alpha) * $wm_opacity;
+        // Calcul du alpha au format GD (0 opaque, 127 transparent)
+        $gd_alpha = (int)round($final_alpha * 127);
+        // On saute les pixels totalement transparents
+        if($gd_alpha >= 127) continue;
+        // Mélange le pixel watermark (pré-multiplié)
+        $orig_px = imagecolorsforindex($dst, imagecolorat($dst, $dx + $x, $dy + $y));
+        // alpha blending front over back :
+        $alpha_front = 1 - $gd_alpha / 127.0;
+        $alpha_back = 1 - ($orig_px['alpha'] / 127.0);
+        $out_alpha = $alpha_front + $alpha_back * (1 - $alpha_front);
+        if($out_alpha==0) $out_r=$out_g=$out_b=0;
+        else {
+            $out_r = (int)round(($rgba['red'] * $alpha_front + $orig_px['red'] * $alpha_back * (1 - $alpha_front)) / $out_alpha);
+            $out_g = (int)round(($rgba['green'] * $alpha_front + $orig_px['green'] * $alpha_back * (1 - $alpha_front)) / $out_alpha);
+            $out_b = (int)round(($rgba['blue'] * $alpha_front + $orig_px['blue'] * $alpha_back * (1 - $alpha_front)) / $out_alpha);
         }
+        $out_alpha_gd = 127 - (int)round($out_alpha * 127);
+        $col = imagecolorallocatealpha($dst, $out_r, $out_g, $out_b, $out_alpha_gd);
+        imagesetpixel($dst, $dx + $x, $dy + $y, $col);
     }
-    imagedestroy($mask);
-} else {
-   
-    imagecopy($dst, $src, $margin, $margin, 0, 0, $ow, $oh);
 }
-            // Réenregistrement dans un fichier temporaire (force PNG si arrondi image!)
+}
+                        imagedestroy($logo_img);
+                        imagedestroy($logo_resized);
+                    }
+                }
+            }
+
             $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
             $rnd = wp_generate_password(10,false,false);
-            if($img_border_radius>0) $ext = 'png';
+            if($img_border_radius>0 || ($wm_enable && $wm_logo_url)) $ext = 'png';
             $out_fn = sys_get_temp_dir().'/wspaste_'.time().'_'.$rnd.'.'.$ext;
             switch(true){
-                case ($img_border_radius>0): imagepng($dst, $out_fn); break;
+                case ($img_border_radius>0 || ($wm_enable && $wm_logo_url)): imagepng($dst, $out_fn); break;
                 case ($mime=='image/png'): imagepng($dst, $out_fn); break;
                 case ($mime=='image/jpeg'): imagejpeg($dst, $out_fn, 96); break;
                 case ($mime=='image/gif'): imagegif($dst, $out_fn); break;
@@ -171,7 +251,6 @@ if($img_border_radius>0){
         }
     }
 
-    // Lire l'image finale en base64 pour OpenAI
     $image_data = file_get_contents($new_tmp);
     $base64 = 'data:' . $mime . ';base64,' . base64_encode($image_data);
 
@@ -275,16 +354,12 @@ if($img_border_radius>0){
     ]);
 });
 
-
-
 if (!function_exists('imagefilledroundedrect')) {
     function imagefilledroundedrect(&$im, $x1,$y1,$x2,$y2, $radius, $col) {
-        // Corners
         imagefilledellipse($im, $x1+$radius, $y1+$radius, $radius*2, $radius*2, $col);
         imagefilledellipse($im, $x2-$radius, $y1+$radius, $radius*2, $radius*2, $col);
         imagefilledellipse($im, $x1+$radius, $y2-$radius, $radius*2, $radius*2, $col);
         imagefilledellipse($im, $x2-$radius, $y2-$radius, $radius*2, $radius*2, $col);
-        // Edges
         imagefilledrectangle($im, $x1+$radius, $y1, $x2-$radius, $y2, $col);
         imagefilledrectangle($im, $x1, $y1+$radius, $x2, $y2-$radius, $col);
     }

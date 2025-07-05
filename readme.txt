@@ -4,7 +4,7 @@ Tags: image, upload, presse-papier, édition classique, screenshot, tinyMCE, mé
 Requires at least: 5.0
 Tested up to: 6.5.3
 Requires PHP: 7.0
-Stable tag: 1.3
+Stable tag: 1.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -39,6 +39,10 @@ Rendez-vous sur un article ou une page (classique) ou dans votre médiathèque
 Utilisez Ctrl+V pour coller une image copiée
 Attendez la fin du loader : l’image est uploadée et insérée/sauvegardée automatiquement
 == MAJ  ==
+
+= 1.4 =
+
+* Possibilité de mettre un logo et modifier sa taille, son opacité et son emplacement
 
 = 1.3 =
 
