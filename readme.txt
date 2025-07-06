@@ -40,6 +40,12 @@ Utilisez Ctrl+V pour coller une image copiée
 Attendez la fin du loader : l’image est uploadée et insérée/sauvegardée automatiquement
 == MAJ  ==
 
+
+= 1.5 =
+
+* Restriction de cloudflare contournée : Le logo est désormais importé localement
+
+
 = 1.4 =
 
 * Possibilité de mettre un logo et modifier sa taille, son opacité et son emplacement

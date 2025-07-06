@@ -4,7 +4,7 @@
  * Plugin Name: WP Screenshot Paste
  * Plugin URI: https://kevin-benabdelhak.fr/plugins/wp-screenshot-paste/
  * Description: WP Screenshot Paste est un plugin conçu pour vous permettre de coller facilement une image ou une capture d’écran (Ctrl+V) directement dans la médiathèque WordPress, l’éditeur TinyMCE ou l’éditeur classique, avec affichage d’un loader et insertion automatique dans le contenu. Possibilité de générer automatiquement alt, légende, titre et description avec gpt-4.1 (clé api requise)
- * Version: 1.4
+ * Version: 1.5
  * Author: Kevin Benabdelhak
  * Author URI: https://kevin-benabdelhak.fr/
  * Contributors: kevinbenabdelhak
