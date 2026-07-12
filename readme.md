@@ -45,6 +45,9 @@ Collez vos captures d'écran ou images copiées directement dans l'éditeur clas
 
 ## MAJ
 
+### 1.6
+- Ajout d'une case à cocher pour désactiver la génération du texte alternatif avec l'IA lors d'un collage
+
 ### 1.5 
 - Restriction de cloudflare contournée : Le logo est désormais importé localement
 
