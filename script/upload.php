@@ -2,7 +2,12 @@
 if (!defined('ABSPATH')) exit;
 
 function wsp_paste_design_config_json() {
+    $ai_generate_enable = intval(get_option('wsp_ai_generate_enable', 1));
+    $openai_key = trim(get_option('wsp_openai_api_key', ''));
+    $ai_generate_active = ($ai_generate_enable && strlen($openai_key) > 10) ? 1 : 0;
+
     $style = [
+        'ai_generate_active' => $ai_generate_active,
         'margin'  => intval(get_option('wsp_screenshot_outer_margin', 16)),
         'color'   => get_option('wsp_screenshot_bgcolor1', '#dde3ec'),
         'gradient'=> '',
@@ -73,6 +78,7 @@ function paste_image_upload_js() {
 
         $(document).ready(function(){
             var $loader = $('#paste-image-loader'), $loaderMsg = $('#paste-image-loader-message');
+            var aiGenerateActive = !!(window.wspPasteScreenshotDesign && window.wspPasteScreenshotDesign.ai_generate_active);
 
             function showLoader(msg) { $loader.show(); $loaderMsg.text(msg || "Upload de l’image collée en cours…"); }
             function hideLoader() { $loader.hide(); }
@@ -119,7 +125,7 @@ function paste_image_upload_js() {
                     showLoader('Upload de l’image collée en cours…');
                     var fileToUpload = files[0];
                                         var uploadPromise = uploadFile(fileToUpload);
-                    setTimeout(function(){ showLoader('Génération du texte alternatif de l\'image par IA…'); }, 900);
+                    if (aiGenerateActive) { setTimeout(function(){ showLoader('Génération du texte alternatif de l\'image par IA…'); }, 900); }
 
                     uploadPromise.done(function(response){
                         hideLoader();
@@ -162,7 +168,7 @@ function paste_image_upload_js() {
                 event.preventDefault();
                 showLoader('Upload de l’image collée en cours…');
                 var uploadPromise = uploadFile(files[0]);
-                setTimeout(function(){ showLoader('Génération du texte alternatif de l\'image par IA…'); }, 900);
+                if (aiGenerateActive) { setTimeout(function(){ showLoader('Génération du texte alternatif de l\'image par IA…'); }, 900); }
 
                 uploadPromise.done(function(response){
                     hideLoader();
@@ -188,7 +194,7 @@ function paste_image_upload_js() {
                     event.preventDefault();
                     showLoader('Upload de l’image collée en cours…');
                     var uploadPromise=uploadFile(files[0]);
-                    setTimeout(function(){ showLoader('Génération du texte alternatif de l\'image par IA…'); }, 900);
+                    if (aiGenerateActive) { setTimeout(function(){ showLoader('Génération du texte alternatif de l\'image par IA…'); }, 900); }
 
                     uploadPromise.done(function(response){
                         hideLoader();

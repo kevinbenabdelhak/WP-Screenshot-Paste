@@ -268,9 +268,10 @@ add_action('wp_ajax_paste_image_upload', function () {
     $base64 = 'data:' . $mime . ';base64,' . base64_encode($image_data);
 
     $openai_key = get_option('wsp_openai_api_key');
+    $ai_generate_enable = intval(get_option('wsp_ai_generate_enable', 1));
     $titre = $alt = $description = $legende = '';
 
-    if ($openai_key && strlen($openai_key) > 10) {
+    if ($ai_generate_enable && $openai_key && strlen($openai_key) > 10) {
         $prompt = 'Renvoie-moi un objet JSON avec les clés suivantes pour cette image : '
             . '"titre" (titre pertinent et court), "alt" (texte alternatif pour l\'accessibilité), '
             . '"description" (description longue détaillée), "legende" (légende synthétique). '

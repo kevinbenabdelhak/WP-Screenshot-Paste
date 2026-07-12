@@ -18,6 +18,7 @@ add_action('admin_menu', function() {
 });
 add_action('admin_init', function() {
     register_setting('wsp_options_group', 'wsp_openai_api_key');
+    register_setting('wsp_options_group', 'wsp_ai_generate_enable', ['type'=>'boolean', 'default'=>1]);
     register_setting('wsp_options_group', 'wsp_screenshot_outer_margin', ['type'=>'integer','default'=>16]);
     register_setting('wsp_options_group', 'wsp_screenshot_bgtype',   ['type'=>'string','default'=>'color']);
     register_setting('wsp_options_group', 'wsp_screenshot_bgcolor1', ['type'=>'string','default'=>'#dde3ec']);
@@ -39,6 +40,7 @@ function wsp_watermark_get_logo_url() {
 }
 
 function wsp_options_page() {
+    $ai_generate_enable = intval(get_option('wsp_ai_generate_enable', 1));
     $outer_margin = intval(get_option('wsp_screenshot_outer_margin', 16));
     $bgtype = get_option('wsp_screenshot_bgtype', 'color');
     $bgcolor1 = get_option('wsp_screenshot_bgcolor1', '#dde3ec');
@@ -68,6 +70,15 @@ function wsp_options_page() {
                     <td>
                         <input type="text" name="wsp_openai_api_key" value="<?php echo esc_attr(get_option('wsp_openai_api_key')); ?>" style="width:400px;" autocomplete="off" />
                         <p class="description">La clé ne sera utilisée que côté serveur (jamais dans le navigateur).</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="wsp_ai_generate_enable">Générer le texte alternatif avec l'IA</label>
+                    </th>
+                    <td>
+                        <input type="checkbox" name="wsp_ai_generate_enable" id="wsp_ai_generate_enable" value="1" <?php checked($ai_generate_enable,1); ?>/>
+                        <span class="description">Si décochée, l'image sera collée telle quelle (médiathèque ou éditeur) sans tentative de génération du titre, alt, légende ou description par IA, même si une clé API est renseignée.</span>
                     </td>
                 </tr>
                 <tr>
